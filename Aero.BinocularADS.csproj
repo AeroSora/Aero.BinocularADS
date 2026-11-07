@@ -1,0 +1,89 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Build with dotnet build -c Release -p:GameDir="C:\SPT". GameDir is the SPT folder containing EscapeFromTarkov.exe. To save it locally, copy Directory.Build.local.props.example to Directory.Build.local.props.
+
+    The build writes bin\Release\Aero.BinocularADS.dll and bin\Release\bundles\aero_binocular.bundle. Add -p:DeployToGame=true to copy both into BepInEx\plugins\Aero.BinocularADS\.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>Aero.BinocularADS</AssemblyName>
+    <RootNamespace>Aero.BinocularADS</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>Aero.BinocularADS</Product>
+    <AssemblyTitle>Aero.BinocularADS</AssemblyTitle>
+    <Description>Both-eyes-open aiming: a see-through second weapon image for the off eye and depth-of-field blur on the aimed weapon.</Description>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <ManagedDir>$(GameDir)\EscapeFromTarkov_Data\Managed</ManagedDir>
+    <BepInExDir>$(GameDir)\BepInEx</BepInExDir>
+  </PropertyGroup>
+
+  <Target Name="RequireGameDir" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(GameDir)' == ''"
+           Text="Set GameDir to your SPT install folder (the one containing EscapeFromTarkov.exe): pass -p:GameDir=... or set it in Directory.Build.local.props." />
+    <Error Condition="!Exists('$(ManagedDir)\Assembly-CSharp.dll')"
+           Text="GameDir '$(GameDir)' does not contain EscapeFromTarkov_Data\Managed\Assembly-CSharp.dll." />
+    <Error Condition="!Exists('$(BepInExDir)\core\BepInEx.dll')"
+           Text="GameDir '$(GameDir)' does not contain BepInEx\core\BepInEx.dll." />
+  </Target>
+
+  <ItemGroup>
+    <Compile Include="AimSteadiness.cs" />
+    <Compile Include="BindonAiming.cs" />
+    <Compile Include="BinocularController.cs" />
+    <Compile Include="BinocularRenderer.cs" />
+    <Compile Include="DefocusController.cs" />
+    <Compile Include="DefocusKernel.cs" />
+    <Compile Include="EyeAmbientOcclusion.cs" />
+    <Compile Include="EyeCinematicOcclusion.cs" />
+    <Compile Include="EyeReflectionIntensity.cs" />
+    <Compile Include="GameFields.cs" />
+    <Compile Include="MainCameraHook.cs" />
+    <Compile Include="NativeFrontMarker.cs" />
+    <Compile Include="Patches.cs" />
+    <Compile Include="Plugin.cs" />
+    <Compile Include="ProductionPipeline.Composite.cs" />
+    <Compile Include="ProductionPipeline.EyeRender.cs" />
+    <Compile Include="ProductionPipeline.Eyes.cs" />
+    <Compile Include="ProductionPipeline.Patches.cs" />
+    <Compile Include="ProductionPipeline.Registry.cs" />
+    <Compile Include="ProductionPipeline.Teardown.cs" />
+    <Compile Include="ProductionPipeline.cs" />
+    <Compile Include="ShaderAssets.cs" />
+    <Compile Include="StereoRenderCoordinator.cs" />
+    <Compile Include="SunShadowSampler.cs" />
+    <Compile Include="WeaponRendererPolicy.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Always copy the bundle so it matches the DLL's checkout. A replacement bundle can be older than the copy in bin, which PreserveNewest would keep.
+    -->
+    <None Include="bundles\aero_binocular.bundle" CopyToOutputDirectory="Always" Link="bundles\aero_binocular.bundle" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx" HintPath="$(BepInExDir)\core\BepInEx.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(BepInExDir)\core\0Harmony.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(ManagedDir)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(ManagedDir)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AssetBundleModule" HintPath="$(ManagedDir)\UnityEngine.AssetBundleModule.dll" Private="false" />
+    <Reference Include="Unity.Postprocessing.Runtime" HintPath="$(ManagedDir)\Unity.Postprocessing.Runtime.dll" Private="false" />
+    <Reference Include="Assembly-CSharp" HintPath="$(ManagedDir)\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="Comfort" HintPath="$(ManagedDir)\Comfort.dll" Private="false" />
+  </ItemGroup>
+
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(DeployToGame)' == 'true'">
+    <PropertyGroup>
+      <PluginDir>$(BepInExDir)\plugins\Aero.BinocularADS\</PluginDir>
+    </PropertyGroup>
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginDir)" />
+    <Copy SourceFiles="$(OutDir)bundles\aero_binocular.bundle" DestinationFolder="$(PluginDir)bundles\" />
+    <Message Importance="high" Text="Deployed to $(PluginDir)" />
+  </Target>
+</Project>

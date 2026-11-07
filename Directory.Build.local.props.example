@@ -1,0 +1,6 @@
+<Project>
+  <!-- Copy this to the untracked Directory.Build.local.props and set GameDir to your SPT install folder. -->
+  <PropertyGroup>
+    <GameDir>C:\SPT</GameDir>
+  </PropertyGroup>
+</Project>

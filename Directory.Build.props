@@ -1,0 +1,6 @@
+<Project>
+  <!--
+    Keep build settings local to this checkout by stopping MSBuild's search of parent folders. For GameDir and other machine settings, copy Directory.Build.local.props.example to the untracked Directory.Build.local.props.
+  -->
+  <Import Project="Directory.Build.local.props" Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.local.props')" />
+</Project>

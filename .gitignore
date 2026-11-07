@@ -1,0 +1,6 @@
+bin/
+obj/
+.vs/
+*.user
+Directory.Build.local.props
+.release-sync-target
