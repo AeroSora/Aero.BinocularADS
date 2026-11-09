@@ -204,6 +204,7 @@ namespace Aero.BinocularADS
                     try
                     {
                         DeveloperBeforeEyeRender();
+                        EyeProbeLight.Sync();
                         _eye.Render();
                     }
                     finally

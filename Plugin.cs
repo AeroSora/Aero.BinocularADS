@@ -36,7 +36,7 @@ namespace Aero.BinocularADS
         public const string GUID = "aero.binocularads";
         public const string NAME = "Aero.BinocularADS";
         // Keep this in sync with <Version> in the project file. tools/release_check.py checks it, and BepInEx reports it at startup so the log identifies the loaded build.
-        public const string VERSION = "0.1.0";
+        public const string VERSION = "0.2.0";
 
         public static Plugin Instance;
         public static ManualLogSource Log;
@@ -54,7 +54,17 @@ namespace Aero.BinocularADS
         // --- Binocular Offset ---
         public static ConfigEntry<float> EyeSeparationCm;
         public static ConfigEntry<Eye> DominantEye;
+        public static ConfigEntry<bool> SwitchEyeOnLeftShoulder;
         public static ConfigEntry<float> ConvergenceDistanceM;
+
+        // Swap the dominant eye while the weapon is on the left shoulder, so the sight picture follows the eye behind the sight.
+        internal static Eye EffectiveDominantEye(EFT.Animations.ProceduralWeaponAnimation pwa)
+        {
+            Eye eye = DominantEye.Value;
+            if (SwitchEyeOnLeftShoulder != null && SwitchEyeOnLeftShoulder.Value && pwa != null && pwa.LeftStance)
+                eye = eye == Eye.Right ? Eye.Left : Eye.Right;
+            return eye;
+        }
 
         // --- Appearance ---
         public static ConfigEntry<float> OverlapOpacity;
@@ -131,6 +141,10 @@ namespace Aero.BinocularADS
             DominantEye = Config.Bind(
                 "Binocular Offset", "Dominant Eye", Eye.Right,
                 "The eye you aim with. Your sight picture stays lined up with it; the ghost gun image belongs to the other eye.");
+
+            SwitchEyeOnLeftShoulder = Config.Bind(
+                "Binocular Offset", "Switch Eye On Left Shoulder", true,
+                "While the weapon is on your left shoulder, aim with the other eye, so the ghost gun image moves to the opposite side. Switching shoulders while aiming fades the second image out, changes eye and fades it back in (Fade Time each way).");
 
             ConvergenceDistanceM = Config.Bind(
                 "Binocular Offset", "Convergence Distance (m)", 1f,

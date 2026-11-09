@@ -2,6 +2,17 @@
 
 All notable changes to this project are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 0.2.0 (unreleased)
+
+- Dominant eye follows the shoulder: with Switch Eye On Left Shoulder on, the left eye aims while the weapon is on the
+  left shoulder. Switching shoulders while aiming fades the second image out and back in around the change.
+- TraceSix support: with TraceSix installed, the aimed weapon gets TraceSix's indirect light, the same light pass it
+  uses for scopes, so it matches the room. Follows TraceSix's Indirect Light In Scopes setting.
+- The game's ambient highlight on the arms and weapon is switched off while the mod is enabled. It only lifted their
+  brightness, and the aimed image now matches hipfire without it.
+- Custom outfits: the arms are also found through the body's hands part, not only by mesh name, and an arm whose glove
+  material cannot be classified stays solid instead of switching the whole effect off.
+
 ## 0.1.0
 
 First public release.

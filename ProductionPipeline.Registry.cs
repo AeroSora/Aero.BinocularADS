@@ -42,6 +42,7 @@ namespace Aero.BinocularADS
                 SightPicture.Add(_ssaaCollimator);
 
             Scan.Clear();
+            ArmRenderers.Clear();
             _weaponRoot.GetComponentsInChildren(false, Scan);
             if (Plugin.TransparentArms.Value)
             {
@@ -51,8 +52,16 @@ namespace Aero.BinocularADS
                     foreach (SkinnedMeshRenderer arm in body.GetComponentsInChildren<SkinnedMeshRenderer>(false))
                     {
                         if (arm != null && arm.name.IndexOf("hand", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
                             Scan.Add(arm);
+                            ArmRenderers.Add(arm);
+                        }
                     }
+                    // Custom outfits name their arm meshes freely ("000_BodySkin", "010_BodySkin", non-Latin names), so also take
+                    // every renderer of the body's Hands part, which is what the game itself draws as the first-person arms.
+                    int byPart = AddHandsPartRenderers(body);
+                    if (byPart > 0)
+                        Plugin.Diagnostic($"[BinoADS] arms: {byPart} renderer(s) of the Hands body part added to the scan");
                 }
             }
 
@@ -120,6 +129,7 @@ namespace Aero.BinocularADS
                 var slots = new SlotClass[mesh.subMeshCount];
                 bool hasOpaque = false;
                 bool hasTransparent = false;
+                bool skipArm = false;
 
                 for (int submesh = 0; submesh < mesh.subMeshCount; submesh++)
                 {
@@ -133,8 +143,37 @@ namespace Aero.BinocularADS
                     string failure;
                     if (!Classify(material, out slots[submesh], out failure))
                     {
-                        FailUnsupported(renderer, submesh, material, failure);
-                        return false;
+                        // Some custom outfit gloves are tagged Transparent but use alpha testing, so the classifier can't place them. Leave those arms native and solid. A development build can treat known materials as opaque instead.
+                        //
+                        // Weapon parts keep the strict rule, since a wrong guess there breaks the sight.
+                        bool takeOver = false;
+                        DeveloperTakeOverConflictingArms(ref takeOver);
+                        bool armOpaque = false;
+                        if (ArmRenderers.Contains(renderer))
+                            DeveloperConflictingArmIsOpaque(material, ref armOpaque);
+                        if (takeOver && ArmRenderers.Contains(renderer) && material.GetTag("RenderType", false, "") == "Transparent")
+                        {
+                            slots[submesh] = SlotClass.Transparent;
+                            Plugin.Diagnostic($"[BinoADS] arms (developer takeover): '{renderer.name}' submesh {submesh} material '{material.name}' queue {material.renderQueue} treated as transparent");
+                        }
+                        else if (armOpaque)
+                        {
+                            slots[submesh] = SlotClass.Opaque;
+                            Plugin.Diagnostic($"[BinoADS] arms (development build): '{renderer.name}' submesh {submesh} material '{material.name}' shader '{material.shader?.name}' " +
+                                              $"treated as opaque (queue now {material.renderQueue}: {failure})");
+                        }
+                        else if (ArmRenderers.Contains(renderer))
+                        {
+                            skipArm = true;
+                            Plugin.Diagnostic($"[BinoADS] arms: '{renderer.name}' left native and solid: submesh {submesh} material '{material.name}' " +
+                                              $"shader '{material.shader?.name}' queue {material.renderQueue}: {failure}");
+                            break;
+                        }
+                        else
+                        {
+                            FailUnsupported(renderer, submesh, material, failure);
+                            return false;
+                        }
                     }
 
                     if (slots[submesh] == SlotClass.Transparent)
@@ -145,6 +184,12 @@ namespace Aero.BinocularADS
                         if (slots[submesh] == SlotClass.Cutout)
                             cutout++;
                     }
+                }
+
+                if (skipArm)
+                {
+                    ArmRenderers.Remove(renderer);
+                    continue;
                 }
 
                 if (isAmmo)
@@ -180,7 +225,7 @@ namespace Aero.BinocularADS
                 item.SecondaryExcluded =
                     renderer is SkinnedMeshRenderer &&
                     !Plugin.DoubleArms.Value &&
-                    renderer.name.IndexOf("hand", StringComparison.OrdinalIgnoreCase) >= 0;
+                    (ArmRenderers.Contains(renderer) || renderer.name.IndexOf("hand", StringComparison.OrdinalIgnoreCase) >= 0);
 
                 if (kind == EntryKind.Mixed && !CreateMixedClones(item, mesh))
                 {
@@ -315,6 +360,30 @@ namespace Aero.BinocularADS
             }
 
             return true;
+        }
+
+        /// <summary>The first-person arm renderers in this registry build (by name or by the Hands body part).</summary>
+        private static readonly System.Collections.Generic.HashSet<Renderer> ArmRenderers = new System.Collections.Generic.HashSet<Renderer>();
+
+        private static readonly HarmonyLib.AccessTools.FieldRef<EFT.Visual.LoddedSkin, Diz.Skinning.AbstractSkin[]> LodsField =
+            HarmonyLib.AccessTools.FieldRefAccess<EFT.Visual.LoddedSkin, Diz.Skinning.AbstractSkin[]>("_lods");
+
+        /// <summary>Adds the active renderers of the body's Hands part that the name rule missed. Returns how many.</summary>
+        private static int AddHandsPartRenderers(EFT.PlayerBody body)
+        {
+            if (body.BodySkins == null || !body.BodySkins.TryGetValue(EFT.EBodyModelPart.Hands, out EFT.Visual.LoddedSkin hands) || hands == null)
+                return 0;
+            int added = 0;
+            foreach (Diz.Skinning.AbstractSkin lod in LodsField(hands) ?? Array.Empty<Diz.Skinning.AbstractSkin>())
+            {
+                SkinnedMeshRenderer renderer = lod != null ? lod.SkinnedMeshRenderer : null;
+                if (renderer == null || !renderer.gameObject.activeInHierarchy || !renderer.enabled || Scan.Contains(renderer))
+                    continue;
+                Scan.Add(renderer);
+                ArmRenderers.Add(renderer);
+                added++;
+            }
+            return added;
         }
 
         private static bool HasCutoff(Material material)

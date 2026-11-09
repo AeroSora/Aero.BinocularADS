@@ -22,6 +22,8 @@ namespace Aero.BinocularADS
         static partial void DeveloperAimEnd();
         static partial void DeveloperCostWindow();
         static partial void DeveloperDispose();
+        static partial void DeveloperTakeOverConflictingArms(ref bool takeOver);
+        static partial void DeveloperConflictingArmIsOpaque(Material material, ref bool opaque);
         static partial void DeveloperEyeCulling(Camera main, ref int mask, float[] cullDistances);
         static partial void DeveloperPreLensCopied(Renderer lens);
         static partial void DeveloperReleaseTargets();

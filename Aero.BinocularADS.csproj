@@ -8,7 +8,7 @@
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>Aero.BinocularADS</AssemblyName>
     <RootNamespace>Aero.BinocularADS</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>Aero.BinocularADS</Product>
     <AssemblyTitle>Aero.BinocularADS</AssemblyTitle>
     <Description>Both-eyes-open aiming: a see-through second weapon image for the off eye and depth-of-field blur on the aimed weapon.</Description>
@@ -34,6 +34,7 @@
 
   <ItemGroup>
     <Compile Include="AimSteadiness.cs" />
+    <Compile Include="AmbientHighlightHands.cs" />
     <Compile Include="BindonAiming.cs" />
     <Compile Include="BinocularController.cs" />
     <Compile Include="BinocularRenderer.cs" />
@@ -41,6 +42,7 @@
     <Compile Include="DefocusKernel.cs" />
     <Compile Include="EyeAmbientOcclusion.cs" />
     <Compile Include="EyeCinematicOcclusion.cs" />
+    <Compile Include="EyeProbeLight.cs" />
     <Compile Include="EyeReflectionIntensity.cs" />
     <Compile Include="GameFields.cs" />
     <Compile Include="MainCameraHook.cs" />

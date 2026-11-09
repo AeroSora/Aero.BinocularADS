@@ -59,12 +59,40 @@ namespace Aero.BinocularADS
         // 0..2: 0-1 is the takeover phase, 1-2 the binocular fade.
         private static float _fadeLinear;
 
+        // The eye the pipeline renders from. When the wanted eye changes mid-aim, fade the second image out, switch eyes, then fade it back in. The dominant image sits at the main camera's pose, so the switch itself can't be seen. When the second image isn't showing, switch at once.
+        public static Eye ActiveDominantEye => _eyeInitialised ? _activeEye : Plugin.EffectiveDominantEye(_pwa);
+        private static Eye _activeEye = Eye.Right;
+        private static bool _eyeInitialised;
+        private static bool _eyeSwitchLogged;
+
         // Advance the linear ramp once per frame. Fade applies smoothstep so the second image eases in and out.
         public static void UpdateFade(float deltaTime)
         {
-            float target = _wasAiming ? 2f : 0f;
+            Eye wanted = Plugin.EffectiveDominantEye(_pwa);
+            if (!_eyeInitialised)
+            {
+                _activeEye = wanted;
+                _eyeInitialised = true;
+            }
+            // Hold the eye until the fade-out completes.
+            bool switching = wanted != _activeEye;
+            if (switching && _fadeLinear > 1f && !_eyeSwitchLogged)
+            {
+                _eyeSwitchLogged = true;
+                Plugin.Diagnostic($"[BinoADS] eye switch {_activeEye} -> {wanted} requested at frame {Time.frameCount}: fading the second image out first (Fade {Fade:0.00})");
+            }
+
+            float target = !_wasAiming ? 0f : switching ? 1f : 2f;
             float seconds = Mathf.Max(0.001f, Plugin.FadeTimeSeconds.Value);
             _fadeLinear = Mathf.MoveTowards(_fadeLinear, target, deltaTime / seconds);
+
+            if (switching && _fadeLinear <= 1f)
+            {
+                if (_eyeSwitchLogged)
+                    Plugin.Diagnostic($"[BinoADS] eye switch {_activeEye} -> {wanted} done at frame {Time.frameCount}: second image fading back in");
+                _activeEye = wanted;
+                _eyeSwitchLogged = false;
+            }
         }
 
         // Check player liveness here because death and raid teardown can happen without an aim refresh.
@@ -125,7 +153,7 @@ namespace Aero.BinocularADS
             if ((aimChanged || sightChanged) && Plugin.Debug.Value)
             {
                 if (aiming)
-                    Plugin.Log.LogInfo($"[BinoADS] AIM ON  | sight={sight} | {Discriminators(pwa)} | separation={Plugin.EyeSeparationCm.Value}cm dominant={Plugin.DominantEye.Value} | overlap={Plugin.OverlapOpacity.Value}% share={Plugin.DominantEyeShare.Value}%");
+                    Plugin.Log.LogInfo($"[BinoADS] AIM ON  | sight={sight} | {Discriminators(pwa)} | separation={Plugin.EyeSeparationCm.Value}cm dominant={Plugin.EffectiveDominantEye(pwa)} leftShoulder={pwa != null && pwa.LeftStance} | overlap={Plugin.OverlapOpacity.Value}% share={Plugin.DominantEyeShare.Value}%");
                 else
                     Plugin.Log.LogInfo("[BinoADS] AIM OFF");
             }

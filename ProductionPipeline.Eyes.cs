@@ -9,6 +9,9 @@ namespace Aero.BinocularADS
 {
     internal static partial class ProductionPipeline
     {
+        // The eye the last ResolveEyes used, so a switch (left shoulder, or a settings change) is logged once.
+        private static Eye _lastDominantEye = Eye.Right;
+
         private static void ResolveEyes(Camera main, out EyePose a, out EyePose b)
         {
             Transform transform = main.transform;
@@ -26,7 +29,13 @@ namespace Aero.BinocularADS
                 return;
             }
 
-            float sign = Plugin.DominantEye.Value == Eye.Right ? 1f : -1f;
+            Eye dominantEye = BinocularController.ActiveDominantEye;
+            if (dominantEye != _lastDominantEye)
+            {
+                Plugin.Diagnostic($"[BinoADS] dominant eye {_lastDominantEye} -> {dominantEye} at frame {Time.frameCount} (configured {Plugin.DominantEye.Value})");
+                _lastDominantEye = dominantEye;
+            }
+            float sign = dominantEye == Eye.Right ? 1f : -1f;
             Vector3 position = transform.position - sign * transform.right * separation;
             Vector3 convergence =
                 transform.position + transform.forward * Mathf.Max(0.05f, Plugin.ConvergenceDistanceM.Value);
@@ -159,6 +168,7 @@ namespace Aero.BinocularADS
             _eye.enabled = false;
             _coverageCommand = new CommandBuffer { name = "Aero Weapon Coverage + Premultiply" };
             _eye.AddCommandBuffer(CameraEvent.AfterEverything, _coverageCommand);
+            EyeProbeLight.Attach(_eye);
         }
 
         // Submit this buffer with Graphics.ExecuteCommandBuffer after the dominant eye renders. Eye B has no Camera.Render event, and sharing _coverageCommand would replay the derive on the next eye render.
@@ -278,7 +288,8 @@ namespace Aero.BinocularADS
         // Use an eye-owned buffer and let EFT populate it. This keeps the private camera out of EFT's per-camera registry. Refill every aimed frame because the intensity curve follows sun elevation and would otherwise freeze at aim-in.
         private static void EnsureAmbientHighlight()
         {
-            AmbientHighlight owner = FindHighlightOwner();
+            // The mod leaves the hands highlight out of the game's pass, so there is nothing for the weapon to mirror.
+            AmbientHighlight owner = AmbientHighlightHands.Removed ? null : FindHighlightOwner();
             if (owner == null)
             {
                 // Clear the attached buffer when the source is inactive so it stops replaying the last highlight.
